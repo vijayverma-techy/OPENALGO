@@ -55,10 +55,13 @@ PEPPER = _pepper_value
 # Setup Fernet encryption for auth tokens
 def get_encryption_key():
     """Generate a Fernet key from the pepper"""
+    import hashlib
+
+    salt = hashlib.sha256(b"openalgo_salt_v1" + PEPPER.encode()).digest()
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b"openalgo_static_salt",
+        salt=salt,
         iterations=100000,
     )
     key = base64.urlsafe_b64encode(kdf.derive(PEPPER.encode()))
