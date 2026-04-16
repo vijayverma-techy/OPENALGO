@@ -613,18 +613,20 @@ def close_position():
                 log_request = order_data.copy()
                 log_request["api_type"] = "closeposition"
 
-                bus.publish(PositionClosedEvent(
-                    mode="live",
-                    api_type="closeposition",
-                    symbol=symbol,
-                    exchange=exchange,
-                    product=product,
-                    orderid=str(orderid),
-                    message="Position close order placed successfully.",
-                    request_data=log_request,
-                    response_data=response_data,
-                    api_key=api_key,
-                ))
+                bus.publish(
+                    PositionClosedEvent(
+                        mode="live",
+                        api_type="closeposition",
+                        symbol=symbol,
+                        exchange=exchange,
+                        product=product,
+                        orderid=str(orderid),
+                        message="Position close order placed successfully.",
+                        request_data=log_request,
+                        response_data=response_data,
+                        api_key=api_key,
+                    )
+                )
         else:
             # No orderid, definite error
             response_data = {
@@ -633,10 +635,8 @@ def close_position():
                 if response and "message" in response
                 else "Failed to close position (broker did not return order ID).",
             }
-            if res and hasattr(res, "status") and isinstance(res.status, int) and res.status >= 400:
-                status_code = res.status  # Use broker's HTTP error code if available
-            else:
-                status_code = 400  # Default to Bad Request
+            status = getattr(res, "status", None)
+            status_code = status if isinstance(status, int) and status >= 400 else 400
 
         return jsonify(response_data), status_code
 

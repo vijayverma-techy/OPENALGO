@@ -111,6 +111,7 @@ def process_orders():
 
                 try:
                     from utils.httpx_client import get_httpx_client
+
                     response = get_httpx_client().post(
                         f"{BASE_URL}/api/v1/placesmartorder", json=smart_order["payload"]
                     )
@@ -148,6 +149,7 @@ def process_orders():
 
                     try:
                         from utils.httpx_client import get_httpx_client
+
                         response = get_httpx_client().post(
                             f"{BASE_URL}/api/v1/placeorder", json=regular_order["payload"]
                         )
@@ -498,15 +500,15 @@ def delete_strategy_route(strategy_id):
     """Delete strategy"""
     user_id = session.get("user")
     if not user_id:
-        return jsonify({"status": "error", "error": "Session expired"}), 401
+        return jsonify({"status": "error", "message": "Session expired"}), 401
 
     strategy = get_strategy(strategy_id)
     if not strategy:
-        return jsonify({"status": "error", "error": "Strategy not found"}), 404
+        return jsonify({"status": "error", "message": "Strategy not found"}), 404
 
     # Check if strategy belongs to user
     if strategy.user_id != user_id:
-        return jsonify({"status": "error", "error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     try:
         # Remove squareoff job if exists
@@ -518,10 +520,10 @@ def delete_strategy_route(strategy_id):
         if delete_strategy(strategy_id):
             return jsonify({"status": "success"})
         else:
-            return jsonify({"status": "error", "error": "Failed to delete strategy"}), 500
+            return jsonify({"status": "error", "message": "Failed to delete strategy"}), 500
     except Exception as e:
         logger.exception(f"Error deleting strategy {strategy_id}: {str(e)}")
-        return jsonify({"status": "error", "error": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @strategy_bp.route("/<int:strategy_id>/configure", methods=["GET", "POST"])
@@ -632,7 +634,7 @@ def configure_symbols(strategy_id):
         except Exception as e:
             error_msg = str(e)
             logger.exception(f"Error configuring symbols: {error_msg}")
-            return jsonify({"status": "error", "error": error_msg}), 400
+            return jsonify({"status": "error", "message": error_msg}), 400
 
     symbol_mappings = get_symbol_mappings(strategy_id)
     return render_template(
@@ -650,20 +652,20 @@ def delete_symbol(strategy_id, mapping_id):
     """Delete symbol mapping"""
     username = session.get("user")
     if not username:
-        return jsonify({"status": "error", "error": "Session expired"}), 401
+        return jsonify({"status": "error", "message": "Session expired"}), 401
 
     strategy = get_strategy(strategy_id)
     if not strategy or strategy.user_id != username:
-        return jsonify({"status": "error", "error": "Strategy not found"}), 404
+        return jsonify({"status": "error", "message": "Strategy not found"}), 404
 
     try:
         if delete_symbol_mapping(mapping_id):
             return jsonify({"status": "success"})
         else:
-            return jsonify({"status": "error", "error": "Symbol mapping not found"}), 404
+            return jsonify({"status": "error", "message": "Symbol mapping not found"}), 404
     except Exception as e:
         logger.exception(f"Error deleting symbol mapping: {str(e)}")
-        return jsonify({"status": "error", "error": str(e)}), 400
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 
 @strategy_bp.route("/search")
@@ -873,10 +875,10 @@ def webhook(webhook_id):
     try:
         strategy = get_strategy_by_webhook_id(webhook_id)
         if not strategy:
-            return jsonify({"error": "Invalid webhook ID"}), 404
+            return jsonify({"status": "error", "message": "Invalid webhook ID"}), 404
 
         if not strategy.is_active:
-            return jsonify({"error": "Strategy is inactive"}), 400
+            return jsonify({"status": "error", "message": "Strategy is inactive"}), 400
 
         # Check trading hours for intraday strategies
         if strategy.is_intraday:
@@ -886,7 +888,7 @@ def webhook(webhook_id):
             # Determine if this is an entry or exit order
             data = request.get_json()
             if not data:
-                return jsonify({"error": "No data received"}), 400
+                return jsonify({"status": "error", "message": "No data received"}), 400
 
             action = data["action"].upper()
             position_size = int(data.get("position_size", 0))
@@ -902,23 +904,34 @@ def webhook(webhook_id):
             # For entry orders, check if within entry time window
             if not is_exit_order:
                 if strategy.start_time and current_time < strategy.start_time:
-                    return jsonify({"error": "Entry orders not allowed before start time"}), 400
+                    return jsonify(
+                        {"status": "error", "message": "Entry orders not allowed before start time"}
+                    ), 400
 
                 if strategy.end_time and current_time > strategy.end_time:
-                    return jsonify({"error": "Entry orders not allowed after end time"}), 400
+                    return jsonify(
+                        {"status": "error", "message": "Entry orders not allowed after end time"}
+                    ), 400
 
             # For exit orders, check if within exit time window (up to square off time)
             else:
                 if strategy.start_time and current_time < strategy.start_time:
-                    return jsonify({"error": "Exit orders not allowed before start time"}), 400
+                    return jsonify(
+                        {"status": "error", "message": "Exit orders not allowed before start time"}
+                    ), 400
 
                 if strategy.squareoff_time and current_time > strategy.squareoff_time:
-                    return jsonify({"error": "Exit orders not allowed after square off time"}), 400
+                    return jsonify(
+                        {
+                            "status": "error",
+                            "message": "Exit orders not allowed after square off time",
+                        }
+                    ), 400
 
         # Parse webhook data
         data = request.get_json()
         if not data:
-            return jsonify({"error": "No data received"}), 400
+            return jsonify({"status": "error", "message": "No data received"}), 400
 
         # Validate required fields
         required_fields = ["symbol", "action"]
@@ -927,7 +940,12 @@ def webhook(webhook_id):
 
         missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
-            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": f"Missing required fields: {', '.join(missing_fields)}",
+                }
+            ), 400
 
         # Validate action based on trading mode
         action = data["action"].upper()
@@ -936,27 +954,41 @@ def webhook(webhook_id):
         if strategy.trading_mode == "LONG":
             if action not in ["BUY", "SELL"]:
                 return jsonify(
-                    {"error": "Invalid action for LONG mode. Use BUY to enter, SELL to exit"}
+                    {
+                        "status": "error",
+                        "message": "Invalid action for LONG mode. Use BUY to enter, SELL to exit",
+                    }
                 ), 400
             use_smart_order = action == "SELL"
         elif strategy.trading_mode == "SHORT":
             if action not in ["BUY", "SELL"]:
                 return jsonify(
-                    {"error": "Invalid action for SHORT mode. Use SELL to enter, BUY to exit"}
+                    {
+                        "status": "error",
+                        "message": "Invalid action for SHORT mode. Use SELL to enter, BUY to exit",
+                    }
                 ), 400
             use_smart_order = action == "BUY"
         else:  # BOTH mode
             if action not in ["BUY", "SELL"]:
-                return jsonify({"error": "Invalid action. Use BUY or SELL"}), 400
+                return jsonify(
+                    {"status": "error", "message": "Invalid action. Use BUY or SELL"}
+                ), 400
 
             # Validate position size based on action
             if action == "BUY" and position_size < 0:
                 return jsonify(
-                    {"error": "For BUY orders in BOTH mode, position_size must be >= 0"}
+                    {
+                        "status": "error",
+                        "message": "For BUY orders in BOTH mode, position_size must be >= 0",
+                    }
                 ), 400
             if action == "SELL" and position_size > 0:
                 return jsonify(
-                    {"error": "For SELL orders in BOTH mode, position_size must be <= 0"}
+                    {
+                        "status": "error",
+                        "message": "For SELL orders in BOTH mode, position_size must be <= 0",
+                    }
                 ), 400
 
             # Smart order logic:
@@ -969,13 +1001,15 @@ def webhook(webhook_id):
             (m for m in get_symbol_mappings(strategy.id) if m.symbol == data["symbol"]), None
         )
         if not mapping:
-            return jsonify({"error": f"No mapping found for symbol {data['symbol']}"}), 400
+            return jsonify(
+                {"status": "error", "message": f"No mapping found for symbol {data['symbol']}"}
+            ), 400
 
         # Get API key from database
         api_key = get_api_key_for_tradingview(strategy.user_id)
         if not api_key:
             logger.error(f"No API key found for user {strategy.user_id}")
-            return jsonify({"error": "No API key found"}), 401
+            return jsonify({"status": "error", "message": "No API key found"}), 401
 
         # Prepare order payload
         payload = {
@@ -1026,8 +1060,10 @@ def webhook(webhook_id):
 
         # Queue the order
         queue_order(endpoint, payload)
-        return jsonify({"message": f"Order queued successfully for {data['symbol']}"}), 200
+        return jsonify(
+            {"status": "success", "message": f"Order queued successfully for {data['symbol']}"}
+        ), 200
 
     except Exception as e:
         logger.exception(f"Error processing webhook: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
