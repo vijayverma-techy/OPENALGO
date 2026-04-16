@@ -726,8 +726,8 @@ def shutdown_database_sessions(exception=None):
             session = getattr(mod, session_attr, None)
             if session is not None:
                 session.remove()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to cleanup session {module_name}.{session_attr}: {e}")
 
 
 # Integrate the WebSocket proxy server with the Flask app

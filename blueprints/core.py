@@ -60,7 +60,6 @@ def setup():
         session["totp_setup"] = True
         session["username"] = username
         session["qr_code"] = qr_code
-        session["totp_secret"] = user.totp_secret
 
         # Flash message with SMTP setup info and redirect to login
         flash(

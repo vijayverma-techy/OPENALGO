@@ -198,7 +198,7 @@ class ExecutionEngine:
                     f"Multiquotes fetched {successful_count}/{len(symbols_list)} symbols successfully"
                 )
             else:
-                logger.debug(f"Multiquotes failed: {response.get('message', 'Unknown error')}")
+                logger.warning(f"Multiquotes API call failed: {response.get('message', 'Unknown error')}")
 
         except Exception as e:
             logger.debug(f"Exception in multiquotes fetch: {str(e)}")
@@ -652,7 +652,7 @@ if __name__ == "__main__":
     logger.info("Starting Sandbox Execution Engine")
 
     # Get check interval from config
-    from database.sandbox_db import init_db
+    from database.sandbox_db import get_config, init_db
 
     init_db()
 
